@@ -28,9 +28,9 @@ function formatDate(timestamp: Timestamp | null) {
 }
 
 function GivenVoteRow({ vote, voterId }: { vote: GivenVote; voterId: string }) {
-  const points = (vote.known ? 1 : 0) + (vote.emotion ? 1 : 0);
+  const points = vote.known + vote.emotion;
 
-  async function save(known: boolean, emotion: boolean) {
+  async function save(known: number, emotion: number) {
     await setDoc(doc(db, "declarations", vote.declarationId, "votes", voterId), {
       voterId,
       celebrityName: vote.celebrityName,
@@ -56,16 +56,14 @@ function GivenVoteRow({ vote, voterId }: { vote: GivenVote; voterId: string }) {
       <div className="flex gap-2">
         <VoteToggle
           label="Connu"
-          points={1}
           color="violet"
-          checked={vote.known}
+          value={vote.known}
           onChange={(value) => save(value, vote.emotion)}
         />
         <VoteToggle
           label="Émotion"
-          points={1}
           color="pink"
-          checked={vote.emotion}
+          value={vote.emotion}
           onChange={(value) => save(vote.known, value)}
         />
       </div>
@@ -113,10 +111,7 @@ export function MyGivenPoints() {
     );
   }
 
-  const totalGiven = votes.reduce(
-    (sum, vote) => sum + (vote.known ? 1 : 0) + (vote.emotion ? 1 : 0),
-    0,
-  );
+  const totalGiven = votes.reduce((sum, vote) => sum + vote.known + vote.emotion, 0);
 
   return (
     <div className="flex w-full flex-col gap-2">

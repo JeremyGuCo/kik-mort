@@ -45,8 +45,7 @@ export function useLeaderboard() {
         let points = 0;
         snapshot.forEach((voteDoc) => {
           const vote = voteDoc.data() as VoteDoc;
-          if (vote.known) points += 1;
-          if (vote.emotion) points += 1;
+          points += vote.known + vote.emotion;
         });
         setPointsByDeclaration((prev) => ({ ...prev, [declaration.id]: points }));
       }),

@@ -20,8 +20,9 @@ export interface VoteDoc {
   // Dénormalisé depuis la déclaration au moment du vote, pour afficher le
   // récap "points donnés" d'un joueur sans requête supplémentaire par vote.
   celebrityName: string;
-  known: boolean;
-  emotion: boolean;
+  // 0 à 2 points par section.
+  known: number;
+  emotion: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
