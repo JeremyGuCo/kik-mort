@@ -3,6 +3,12 @@ import "./globals.css";
 import { AuthGate } from "@/components/AuthGate";
 import { PendingVoteModal } from "@/components/PendingVoteModal";
 
+// Tout l'arbre dépend de l'état d'auth Firebase (AuthGate) et du temps réel
+// Firestore : rien ici n'est vraiment statique, donc pas de prerendering.
+// Ça évite aussi qu'un build échoue si les variables NEXT_PUBLIC_FIREBASE_*
+// ne sont pas encore configurées sur l'environnement de déploiement.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Kik-Mort",
   description: "Le jeu de comptage de points entre amis sur la mortalité des célébrités.",
