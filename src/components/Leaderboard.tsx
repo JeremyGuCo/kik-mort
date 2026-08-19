@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { Database } from "@/lib/supabase/types";
+import { useEffect, useState } from "react";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import type { UserDoc } from "@/lib/firebase/types";
 
-type LeaderboardEntry = Database["public"]["Views"]["leaderboard"]["Row"];
+type LeaderboardEntry = UserDoc & { id: string };
 
 const RANK_STYLES = [
   { shadow: "shadow-pixel-acid", badge: "bg-gbc-acid" },
@@ -16,44 +17,20 @@ export function Leaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchLeaderboard = useCallback(async () => {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("leaderboard")
-      .select("*")
-      .order("total_score", { ascending: false });
-
-    if (!error && data) {
-      setEntries(data);
-    }
-    setLoading(false);
-  }, []);
-
   useEffect(() => {
-    fetchLeaderboard();
+    // Contrairement à une vue SQL, une requête Firestore est nativement
+    // "live" : pas besoin d'écouter les tables sources et de refetch.
+    const usersQuery = query(collection(db, "users"), orderBy("totalScore", "desc"));
 
-    const supabase = createClient();
-    // La vue leaderboard n'est pas elle-même "realtime" : on écoute les
-    // tables sources (un score change quand une déclaration se ferme, ou
-    // qu'un nouveau joueur rejoint) et on refetch l'agrégat à chaque coup.
-    const channel = supabase
-      .channel("leaderboard-updates")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "declarations" },
-        fetchLeaderboard,
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "users" },
-        fetchLeaderboard,
-      )
-      .subscribe();
+    const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
+      setEntries(
+        snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as UserDoc) })),
+      );
+      setLoading(false);
+    });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchLeaderboard]);
+    return unsubscribe;
+  }, []);
 
   if (loading) {
     return (
@@ -91,10 +68,10 @@ export function Leaderboard() {
               {index + 1}
             </span>
 
-            {entry.avatar_url ? (
+            {entry.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={entry.avatar_url}
+                src={entry.avatarUrl}
                 alt=""
                 className="h-8 w-8 shrink-0 rounded-full border-2 border-gbc-ink object-cover"
               />
@@ -107,7 +84,7 @@ export function Leaderboard() {
             </span>
 
             <span className="label-pixel text-gbc-acid shrink-0">
-              {entry.total_score} pts
+              {entry.totalScore} pts
             </span>
           </li>
         );
