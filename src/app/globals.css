@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,23 +6,43 @@
 
 @layer base {
   body {
-    @apply bg-gbc-bg text-gbc-gray-100 font-pixel;
-    /* Rendu net des bords de police, cohérent avec l'esthétique pixel-art */
-    -webkit-font-smoothing: none;
-    text-rendering: optimizeSpeed;
+    /* Le contenu courant (textes, listes, formulaires) reste en sans-serif
+       lisible : le pixel-art est réservé aux titres/CTA via .font-pixel. */
+    @apply bg-gbc-bg text-gbc-gray-100 font-sans text-base;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-pixel tracking-pixel;
   }
 }
 
 @layer components {
   /* Bouton "chunky" de base : bordure épaisse + ombre nette, effet pressé
-     au clic (l'ombre disparaît, le bouton se translate). */
+     au clic (l'ombre disparaît, le bouton se translate). Le libellé reste en
+     sans-serif semi-bold : plus lisible qu'en pixel sur un mot long. */
   .btn-pixel {
-    @apply border-4 border-gbc-ink bg-gbc-acid text-gbc-ink px-4 py-3 shadow-pixel
+    @apply border-4 border-gbc-ink bg-gbc-acid text-gbc-ink px-5 py-3
+      font-sans font-bold tracking-wide shadow-pixel
       active:translate-x-pixel active:translate-y-pixel active:shadow-none
       transition-none select-none;
   }
 
+  .btn-pixel-violet {
+    @apply btn-pixel bg-gbc-violet text-gbc-ink shadow-pixel-violet;
+  }
+
+  .btn-pixel-pink {
+    @apply btn-pixel bg-gbc-pink text-gbc-ink shadow-pixel-pink;
+  }
+
   .panel-pixel {
     @apply border-4 border-gbc-ink bg-gbc-panel shadow-pixel;
+  }
+
+  /* Badge/score en police pixel : usage court (ex: "+2", "#1") uniquement. */
+  .label-pixel {
+    @apply font-pixel tracking-pixel text-xs;
   }
 }
