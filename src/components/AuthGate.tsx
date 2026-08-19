@@ -13,6 +13,7 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
+import { ProfileForm } from "./ProfileForm";
 
 // Groupe d'amis fermé pour l'instant. Tenu en phase avec la limite de
 // meta/registrationCount dans firestore.rules.
@@ -26,17 +27,17 @@ const PROFILE_TIMEOUT_MS = 8000;
 // Crée le profil du joueur ET incrémente le compteur d'inscriptions dans la
 // même transaction : soit les deux écritures passent, soit aucune — un
 // compte au-delà du quota ne peut jamais se retrouver avec un profil.
-async function registerProfile(user: User) {
+async function registerProfile(user: User): Promise<"created" | "existing" | "capped"> {
   const profileRef = doc(db, "users", user.uid);
   const counterRef = doc(db, "meta", "registrationCount");
 
-  await runTransaction(db, async (tx) => {
+  return runTransaction(db, async (tx) => {
     const profileSnap = await tx.get(profileRef);
-    if (profileSnap.exists()) return; // déjà inscrit
+    if (profileSnap.exists()) return "existing";
 
     const counterSnap = await tx.get(counterRef);
     const count = counterSnap.exists() ? (counterSnap.data().count as number) : 0;
-    if (count >= MAX_USERS) return; // quota atteint : pas de profil créé
+    if (count >= MAX_USERS) return "capped"; // quota atteint : pas de profil créé
 
     const fallbackName = user.email?.split("@")[0] ?? `joueur-${user.uid.slice(0, 6)}`;
     const [firstName, ...rest] = (user.displayName ?? fallbackName).split(" ");
@@ -50,6 +51,7 @@ async function registerProfile(user: User) {
       createdAt: serverTimestamp(),
     });
     tx.set(counterRef, { count: count + 1 });
+    return "created";
   });
 }
 
@@ -80,6 +82,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   const [profileExists, setProfileExists] = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
+  const [justRegistered, setJustRegistered] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
 
   useEffect(
     () =>
@@ -88,6 +92,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
         setChecked(true);
         setProfileExists(false);
         setProfileTimedOut(false);
+        setJustRegistered(false);
+        setOnboardingDone(false);
       }),
     [],
   );
@@ -98,7 +104,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
     // Tentative d'inscription (no-op si le profil existe déjà, ou si le
     // quota est atteint). Erreurs volontairement ignorées : dans les deux
     // cas, l'écran ci-dessous prendra le relais via profileTimedOut.
-    registerProfile(user).catch(() => {});
+    registerProfile(user)
+      .then((result) => {
+        if (result === "created") setJustRegistered(true);
+      })
+      .catch(() => {});
 
     const timeout = setTimeout(() => setProfileTimedOut(true), PROFILE_TIMEOUT_MS);
 
@@ -254,6 +264,30 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <main className="flex min-h-dvh items-center justify-center">
         <p className="font-sans text-sm text-gbc-gray-300">Création de ton profil…</p>
+      </main>
+    );
+  }
+
+  if (justRegistered && !onboardingDone) {
+    return (
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-6 p-6">
+        <div className="flex w-full max-w-sm flex-col items-center gap-3 text-center">
+          <h1 className="text-xl text-gbc-acid">Bienvenue !</h1>
+          <p className="font-sans text-sm text-gbc-gray-300">
+            Vérifie tes infos avant de commencer — tu pourras toujours les changer plus
+            tard depuis ton profil.
+          </p>
+        </div>
+
+        <ProfileForm />
+
+        <button
+          type="button"
+          onClick={() => setOnboardingDone(true)}
+          className="btn-pixel text-sm"
+        >
+          Continuer
+        </button>
       </main>
     );
   }

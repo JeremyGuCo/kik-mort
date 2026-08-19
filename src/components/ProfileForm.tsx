@@ -5,12 +5,14 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import type { UserDoc } from "@/lib/firebase/types";
+import { AvatarPicker } from "./AvatarPicker";
 
 export function ProfileForm() {
   const [user, setUser] = useState<User | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [nickname, setNickname] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -27,9 +29,16 @@ export function ProfileForm() {
       setFirstName(profile.firstName);
       setLastName(profile.lastName);
       setNickname(profile.nickname);
+      setAvatarUrl(profile.avatarUrl);
       setLoading(false);
     });
   }, [user]);
+
+  async function handleSelectAvatar(nextAvatarUrl: string) {
+    if (!user) return;
+    setAvatarUrl(nextAvatarUrl);
+    await updateDoc(doc(db, "users", user.uid), { avatarUrl: nextAvatarUrl });
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -67,6 +76,8 @@ export function ProfileForm() {
       onSubmit={handleSubmit}
       className="panel-pixel flex w-full max-w-sm flex-col gap-4 p-5"
     >
+      <AvatarPicker currentAvatarUrl={avatarUrl} onSelect={handleSelectAvatar} />
+
       <div className="flex flex-col gap-2">
         <label htmlFor="nickname" className="label-pixel text-gbc-acid">
           Surnom (affiché dans l&apos;app)
