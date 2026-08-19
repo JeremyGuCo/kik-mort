@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PendingVoteModal } from "@/components/PendingVoteModal";
 
 export const metadata: Metadata = {
   title: "Kik-Mort",
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#0f0f1b",
+  themeColor: "#181430",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -19,7 +20,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body>
+        {children}
+        <PendingVoteModal />
+      </body>
     </html>
   );
 }
