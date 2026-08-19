@@ -119,7 +119,7 @@ export function DeclareForm() {
       className="panel-pixel flex w-full max-w-sm flex-col gap-4 p-5"
     >
       <label htmlFor="celebrityName" className="label-pixel text-gbc-acid">
-        Qui est mort ?
+        Ki ké mort ?
       </label>
 
       <div className="relative flex flex-col gap-2">
