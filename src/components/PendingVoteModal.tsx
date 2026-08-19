@@ -82,6 +82,8 @@ export function PendingVoteModal() {
     setSubmitting(true);
     try {
       await setDoc(doc(db, "declarations", pending.id, "votes", user.uid), {
+        voterId: user.uid,
+        celebrityName: pending.celebrityName,
         known,
         emotion,
         createdAt: serverTimestamp(),

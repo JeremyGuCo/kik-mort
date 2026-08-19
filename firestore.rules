@@ -4,11 +4,14 @@ rules_version = '2';
 // Kik-Mort — Règles Firestore (équivalent des policies RLS Supabase)
 //
 // Modèle de données :
-//   users/{uid}                        { username, avatarUrl, totalScore, createdAt }
-//   declarations/{declarationId}       { celebrityName, declaredBy, status, scoreAwarded, createdAt, closedAt }
-//   declarations/{id}/votes/{voterId}  { known, emotion, createdAt, updatedAt }
+//   users/{uid}                        { firstName, lastName, nickname, avatarUrl, totalScore, createdAt }
+//   declarations/{declarationId}       { celebrityName, declaredBy, status, scoreAwarded, createdAt, closedAt, wikipediaUrl }
+//   declarations/{id}/votes/{voterId}  { voterId, celebrityName, known, emotion, createdAt, updatedAt }
 //     (l'id du document de vote = uid du votant : empêche nativement un
-//      deuxième vote du même joueur sur la même déclaration, sans requête).
+//      deuxième vote du même joueur sur la même déclaration, sans requête.
+//      voterId et celebrityName sont dénormalisés pour permettre le récap
+//      "points donnés" d'un joueur via une requête collectionGroup, sans
+//      relire chaque déclaration parente.)
 //   meta/registrationCount             { count }
 //     (compteur d'inscriptions, incrémenté atomiquement à chaque nouveau
 //      profil créé — voir la fonction underCap() ci-dessous).
@@ -116,6 +119,7 @@ service cloud.firestore {
         allow create, update: if isSignedIn()
           && hasProfile()
           && request.auth.uid == voterId
+          && request.resource.data.voterId == request.auth.uid
           && declaration(declarationId).status == 'open'
           && declaration(declarationId).declaredBy != request.auth.uid;
 

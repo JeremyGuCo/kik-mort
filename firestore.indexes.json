@@ -1,4 +1,10 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "votes",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [{ "fieldPath": "voterId", "order": "ASCENDING" }]
+    }
+  ],
   "fieldOverrides": []
 }
