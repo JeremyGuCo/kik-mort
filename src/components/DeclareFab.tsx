@@ -16,9 +16,18 @@ export function DeclareFab() {
       <img
         src="/icons/skull-fab.png"
         alt=""
-        className="h-24 w-24 shrink-0"
+        className="h-20 w-20 shrink-0"
         style={{ imageRendering: "pixelated" }}
       />
+
+      <span
+        aria-hidden="true"
+        className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center
+          rounded-full border-4 border-gbc-ink bg-gbc-acid font-pixel text-base
+          leading-none text-gbc-ink"
+      >
+        +
+      </span>
     </Link>
   );
 }
