@@ -5,30 +5,10 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "@/lib/firebase/client";
-import type { DeclarationDoc, VoteDoc } from "@/lib/firebase/types";
+import { useVoteTally } from "@/lib/firebase/useVoteTally";
+import type { DeclarationDoc } from "@/lib/firebase/types";
 
 type OwnDeclaration = DeclarationDoc & { id: string };
-
-function useVoteTally(declarationId: string) {
-  const [tally, setTally] = useState({ voters: 0, points: 0 });
-
-  useEffect(() => {
-    return onSnapshot(
-      collection(db, "declarations", declarationId, "votes"),
-      (snapshot) => {
-        let points = 0;
-        snapshot.forEach((voteDoc) => {
-          const vote = voteDoc.data() as VoteDoc;
-          if (vote.known) points += 1;
-          if (vote.emotion) points += 1;
-        });
-        setTally({ voters: snapshot.size, points });
-      },
-    );
-  }, [declarationId]);
-
-  return tally;
-}
 
 function OwnDeclarationCard({ declaration }: { declaration: OwnDeclaration }) {
   const tally = useVoteTally(declaration.id);

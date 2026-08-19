@@ -16,6 +16,7 @@ export interface DeclarationDoc {
   scoreAwarded: number | null;
   createdAt: Timestamp;
   closedAt: Timestamp | null;
+  wikipediaUrl: string | null;
 }
 
 export interface VoteDoc {

@@ -1,0 +1,157 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { useUsername } from "@/lib/firebase/useUsername";
+import { useVoteTally } from "@/lib/firebase/useVoteTally";
+import type { DeclarationDoc, VoteDoc } from "@/lib/firebase/types";
+
+type HistoryDeclaration = DeclarationDoc & { id: string };
+
+function formatDate(timestamp: Timestamp | null) {
+  if (!timestamp) return "à l'instant";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(timestamp.toDate());
+}
+
+function VoteRow({
+  voterId,
+  known,
+  emotion,
+}: {
+  voterId: string;
+  known: boolean;
+  emotion: boolean;
+}) {
+  const username = useUsername(voterId);
+  const points = (known ? 1 : 0) + (emotion ? 1 : 0);
+
+  return (
+    <li className="flex items-center justify-between gap-2 font-sans text-xs text-gbc-gray-300">
+      <span className="truncate">{username ?? "…"}</span>
+      <span className="label-pixel shrink-0">
+        {points === 0
+          ? "0 pt"
+          : [known && "connu", emotion && "émotion"].filter(Boolean).join(" · ")}
+      </span>
+    </li>
+  );
+}
+
+function VoteDetails({ declarationId }: { declarationId: string }) {
+  const [votes, setVotes] = useState<(VoteDoc & { id: string })[]>([]);
+
+  useEffect(() => {
+    return onSnapshot(
+      collection(db, "declarations", declarationId, "votes"),
+      (snapshot) => {
+        setVotes(snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as VoteDoc) })));
+      },
+    );
+  }, [declarationId]);
+
+  if (votes.length === 0) {
+    return (
+      <p className="font-sans text-xs text-gbc-gray-300">Aucun vote pour l&apos;instant.</p>
+    );
+  }
+
+  return (
+    <ul className="flex flex-col gap-1 border-t-2 border-gbc-ink pt-2">
+      {votes.map((vote) => (
+        <VoteRow key={vote.id} voterId={vote.id} known={vote.known} emotion={vote.emotion} />
+      ))}
+    </ul>
+  );
+}
+
+function HistoryCard({ declaration }: { declaration: HistoryDeclaration }) {
+  const declarantName = useUsername(declaration.declaredBy);
+  const liveTally = useVoteTally(declaration.id);
+  const [expanded, setExpanded] = useState(false);
+
+  const isOpen = declaration.status === "open";
+  const score = isOpen ? liveTally.points : declaration.scoreAwarded ?? 0;
+
+  return (
+    <li className="panel-pixel flex flex-col gap-2 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-sans text-sm font-semibold">
+            {declaration.celebrityName}
+          </p>
+          <p className="font-sans text-xs text-gbc-gray-300">
+            par {declarantName ?? "…"} · {formatDate(declaration.createdAt)}
+          </p>
+        </div>
+        <span
+          className={`label-pixel shrink-0 ${isOpen ? "text-gbc-yellow" : "text-gbc-acid"}`}
+        >
+          {isOpen ? "ouverte" : `+${score} pt${score > 1 ? "s" : ""}`}
+        </span>
+      </div>
+
+      {declaration.wikipediaUrl && (
+        <a
+          href={declaration.wikipediaUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-fit font-sans text-xs text-gbc-cyan underline decoration-dotted"
+        >
+          Voir la fiche Wikipédia
+        </a>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        className="w-fit font-sans text-xs text-gbc-gray-300 underline decoration-dotted"
+      >
+        {expanded ? "Masquer les votes" : "Voir les votes"}
+      </button>
+
+      {expanded && <VoteDetails declarationId={declaration.id} />}
+    </li>
+  );
+}
+
+export function DeclarationHistory() {
+  const [declarations, setDeclarations] = useState<HistoryDeclaration[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const historyQuery = query(collection(db, "declarations"), orderBy("createdAt", "desc"));
+    return onSnapshot(historyQuery, (snapshot) => {
+      setDeclarations(
+        snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as DeclarationDoc) })),
+      );
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <p className="font-sans text-sm text-gbc-gray-300 text-center py-8">Chargement…</p>
+    );
+  }
+
+  if (declarations.length === 0) {
+    return (
+      <p className="font-sans text-sm text-gbc-gray-300 text-center py-8">
+        Aucune déclaration pour l&apos;instant.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="flex w-full flex-col gap-3">
+      {declarations.map((declaration) => (
+        <HistoryCard key={declaration.id} declaration={declaration} />
+      ))}
+    </ul>
+  );
+}

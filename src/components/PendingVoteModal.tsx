@@ -99,6 +99,16 @@ export function PendingVoteModal() {
           <p className="label-pixel mb-2 text-gbc-gray-300">Nouvelle déclaration</p>
           <h2 className="break-words text-lg text-gbc-acid">{pending.celebrityName}</h2>
           <p className="mt-2 font-sans text-sm text-gbc-gray-300">est mort(e). Vrai ?</p>
+          {pending.wikipediaUrl && (
+            <a
+              href={pending.wikipediaUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-block font-sans text-xs text-gbc-cyan underline decoration-dotted"
+            >
+              Voir la fiche Wikipédia
+            </a>
+          )}
         </div>
 
         <VoteToggle

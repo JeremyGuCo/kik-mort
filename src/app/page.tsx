@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AccountBadge } from "@/components/AccountBadge";
 import { Leaderboard } from "@/components/Leaderboard";
 import { DeclareFab } from "@/components/DeclareFab";
@@ -13,7 +14,16 @@ export default function Home() {
 
       <MyOpenDeclarations />
 
-      <div className="w-full max-w-sm">
+      <div className="flex w-full max-w-sm flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <h2 className="label-pixel text-gbc-gray-300">Classement</h2>
+          <Link
+            href="/historique"
+            className="font-sans text-xs text-gbc-cyan underline decoration-dotted"
+          >
+            Historique →
+          </Link>
+        </div>
         <Leaderboard />
       </div>
 
