@@ -2,15 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from "firebase/firestore";
+import { collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import type { DeclarationDoc } from "@/lib/firebase/types";
 import { VoteToggle } from "./VoteToggle";
@@ -27,16 +19,15 @@ export function PendingVoteModal() {
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
-  // Déclarations actuellement ouvertes, à l'exclusion des siennes.
+  // Toutes les déclarations des autres joueurs (toujours votables, il n'y
+  // a plus de notion de clôture).
   useEffect(() => {
     if (!user) {
       setOpenDeclarations([]);
       return;
     }
 
-    const openQuery = query(collection(db, "declarations"), where("status", "==", "open"));
-
-    return onSnapshot(openQuery, (snapshot) => {
+    return onSnapshot(collection(db, "declarations"), (snapshot) => {
       setOpenDeclarations(
         snapshot.docs
           .map((d) => ({ id: d.id, ...(d.data() as DeclarationDoc) }))

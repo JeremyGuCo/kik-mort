@@ -1,11 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+} from "firebase/firestore";
+import { auth, db } from "@/lib/firebase/client";
 import { useNickname } from "@/lib/firebase/useNickname";
 import { useVoteTally } from "@/lib/firebase/useVoteTally";
 import type { DeclarationDoc, VoteDoc } from "@/lib/firebase/types";
+import { VoteToggle } from "./VoteToggle";
 
 type HistoryDeclaration = DeclarationDoc & { id: string };
 
@@ -69,13 +80,81 @@ function VoteDetails({ declarationId }: { declarationId: string }) {
   );
 }
 
+// Toggles éditables pour son propre vote — modifiable à tout moment, il
+// n'y a plus de notion de clôture.
+function MyVoteEditor({
+  declarationId,
+  celebrityName,
+  voterId,
+}: {
+  declarationId: string;
+  celebrityName: string;
+  voterId: string;
+}) {
+  const [known, setKnown] = useState(false);
+  const [emotion, setEmotion] = useState(false);
+
+  useEffect(() => {
+    return onSnapshot(
+      doc(db, "declarations", declarationId, "votes", voterId),
+      (snap) => {
+        if (!snap.exists()) return;
+        const vote = snap.data() as VoteDoc;
+        setKnown(vote.known);
+        setEmotion(vote.emotion);
+      },
+    );
+  }, [declarationId, voterId]);
+
+  async function save(nextKnown: boolean, nextEmotion: boolean) {
+    await setDoc(doc(db, "declarations", declarationId, "votes", voterId), {
+      voterId,
+      celebrityName,
+      known: nextKnown,
+      emotion: nextEmotion,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-t-2 border-gbc-ink pt-2">
+      <p className="label-pixel text-gbc-gray-300">Mon vote</p>
+      <div className="flex gap-2">
+        <VoteToggle
+          label="Connu"
+          points={1}
+          color="violet"
+          checked={known}
+          onChange={(value) => {
+            setKnown(value);
+            save(value, emotion);
+          }}
+        />
+        <VoteToggle
+          label="Émotion"
+          points={1}
+          color="pink"
+          checked={emotion}
+          onChange={(value) => {
+            setEmotion(value);
+            save(known, value);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function HistoryCard({ declaration }: { declaration: HistoryDeclaration }) {
+  const [user, setUser] = useState<User | null>(null);
   const declarantName = useNickname(declaration.declaredBy);
   const liveTally = useVoteTally(declaration.id);
   const [expanded, setExpanded] = useState(false);
 
-  const isOpen = declaration.status === "open";
-  const score = isOpen ? liveTally.points : declaration.scoreAwarded ?? 0;
+  useEffect(() => onAuthStateChanged(auth, setUser), []);
+
+  const isOwn = user?.uid === declaration.declaredBy;
 
   return (
     <li className="panel-pixel flex flex-col gap-2 p-4">
@@ -88,10 +167,8 @@ function HistoryCard({ declaration }: { declaration: HistoryDeclaration }) {
             par {declarantName ?? "…"} · {formatDate(declaration.createdAt)}
           </p>
         </div>
-        <span
-          className={`label-pixel shrink-0 ${isOpen ? "text-gbc-yellow" : "text-gbc-acid"}`}
-        >
-          {isOpen ? "ouverte" : `+${score} pt${score > 1 ? "s" : ""}`}
+        <span className="label-pixel shrink-0 text-gbc-acid">
+          {liveTally.points} pt{liveTally.points > 1 ? "s" : ""}
         </span>
       </div>
 
@@ -115,6 +192,14 @@ function HistoryCard({ declaration }: { declaration: HistoryDeclaration }) {
       </button>
 
       {expanded && <VoteDetails declarationId={declaration.id} />}
+
+      {user && !isOwn && (
+        <MyVoteEditor
+          declarationId={declaration.id}
+          celebrityName={declaration.celebrityName}
+          voterId={user.uid}
+        />
+      )}
     </li>
   );
 }

@@ -4,8 +4,8 @@ rules_version = '2';
 // Kik-Mort — Règles Firestore (équivalent des policies RLS Supabase)
 //
 // Modèle de données :
-//   users/{uid}                        { firstName, lastName, nickname, avatarUrl, totalScore, createdAt }
-//   declarations/{declarationId}       { celebrityName, declaredBy, status, scoreAwarded, createdAt, closedAt, wikipediaUrl }
+//   users/{uid}                        { firstName, lastName, nickname, avatarUrl, createdAt }
+//   declarations/{declarationId}       { celebrityName, declaredBy, createdAt, wikipediaUrl }
 //   declarations/{id}/votes/{voterId}  { voterId, celebrityName, known, emotion, createdAt, updatedAt }
 //     (l'id du document de vote = uid du votant : empêche nativement un
 //      deuxième vote du même joueur sur la même déclaration, sans requête.
@@ -15,6 +15,13 @@ rules_version = '2';
 //   meta/registrationCount             { count }
 //     (compteur d'inscriptions, incrémenté atomiquement à chaque nouveau
 //      profil créé — voir la fonction underCap() ci-dessous).
+//
+// Pas de "clôture" ni de champ score sur les documents : chaque déclaration
+// reste modifiable par les votants en permanence (max 2 pts : Connu +
+// Émotion), et le score de chaque joueur est calculé en direct côté client
+// en sommant les votes reçus sur ses déclarations — jamais stocké ni
+// transféré vers le profil d'un autre joueur. Ça évite tout mécanisme de
+// confiance inter-documents (donc pas besoin de Cloud Function ici).
 // ============================================================================
 
 service cloud.firestore {
@@ -75,15 +82,12 @@ service cloud.firestore {
       // — les deux écritures doivent passer ensemble ou pas du tout.
       allow create: if isSignedIn()
         && request.auth.uid == userId
-        && request.resource.data.totalScore == 0
         && underCap();
 
-      // Un joueur peut modifier son propre profil (username, avatar) mais
-      // ne peut jamais toucher à totalScore : seule la Cloud Function
-      // closeDeclaration (Admin SDK, hors règles) l'incrémente.
-      allow update: if isSignedIn()
-        && request.auth.uid == userId
-        && request.resource.data.totalScore == resource.data.totalScore;
+      // Un joueur peut modifier son propre profil (prénom, nom, surnom,
+      // avatar) — aucun champ sensible à protéger ici, il n'y a pas de
+      // score stocké sur ce document.
+      allow update: if isSignedIn() && request.auth.uid == userId;
 
       allow delete: if false;
     }
@@ -94,17 +98,13 @@ service cloud.firestore {
     match /declarations/{declarationId} {
       allow read: if isSignedIn();
 
-      // Un joueur ne peut déclarer qu'en son propre nom, et uniquement à
-      // l'état initial (ouvert, sans score).
+      // Un joueur ne peut déclarer qu'en son propre nom.
       allow create: if isSignedIn()
         && hasProfile()
-        && request.resource.data.declaredBy == request.auth.uid
-        && request.resource.data.status == 'open'
-        && request.resource.data.scoreAwarded == null;
+        && request.resource.data.declaredBy == request.auth.uid;
 
-      // Pas de clôture ni de modification directe côté client : ça
-      // passerait à côté du calcul de score. Seule la Cloud Function
-      // closeDeclaration (Admin SDK) peut clôturer.
+      // Pas de modification ni de suppression d'une déclaration une fois
+      // créée.
       allow update, delete: if false;
 
       // --------------------------------------------------------------
@@ -114,18 +114,17 @@ service cloud.firestore {
         allow read: if isSignedIn();
 
         // Un joueur ne peut écrire que son propre vote (id du doc = son
-        // uid), pas sur sa propre déclaration, et uniquement tant qu'elle
-        // est ouverte.
+        // uid), jamais sur sa propre déclaration. Modifiable à tout moment
+        // (création ou mise à jour) — pas de notion de clôture.
         allow create, update: if isSignedIn()
           && hasProfile()
           && request.auth.uid == voterId
           && request.resource.data.voterId == request.auth.uid
-          && declaration(declarationId).status == 'open'
           && declaration(declarationId).declaredBy != request.auth.uid;
 
-        allow delete: if isSignedIn()
-          && request.auth.uid == voterId
-          && declaration(declarationId).status == 'open';
+        // Pas de suppression : pour retirer ses points, on remet les deux
+        // toggles à false plutôt que de supprimer le document.
+        allow delete: if false;
       }
     }
   }
