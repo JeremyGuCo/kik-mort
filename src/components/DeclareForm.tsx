@@ -80,10 +80,7 @@ export function DeclareForm() {
       await addDoc(collection(db, "declarations"), {
         celebrityName: trimmedName,
         declaredBy: user.uid,
-        status: "open",
-        scoreAwarded: null,
         createdAt: serverTimestamp(),
-        closedAt: null,
         wikipediaUrl: selectedWiki?.url ?? null,
       });
       router.push("/");

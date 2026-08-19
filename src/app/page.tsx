@@ -2,7 +2,6 @@ import Link from "next/link";
 import { AccountBadge } from "@/components/AccountBadge";
 import { Leaderboard } from "@/components/Leaderboard";
 import { DeclareFab } from "@/components/DeclareFab";
-import { MyOpenDeclarations } from "@/components/MyOpenDeclarations";
 
 export default function Home() {
   return (
@@ -11,8 +10,6 @@ export default function Home() {
         <h1 className="text-xl text-gbc-acid">KIK-MORT</h1>
         <AccountBadge />
       </div>
-
-      <MyOpenDeclarations />
 
       <div className="flex w-full max-w-sm flex-col gap-2">
         <div className="flex items-center justify-between">

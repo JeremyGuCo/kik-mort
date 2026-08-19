@@ -1,11 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
-import type { UserDoc } from "@/lib/firebase/types";
-
-type LeaderboardEntry = UserDoc & { id: string };
+import { useLeaderboard } from "@/lib/firebase/useLeaderboard";
 
 const RANK_STYLES = [
   { shadow: "shadow-pixel-acid", badge: "bg-gbc-acid" },
@@ -14,23 +9,7 @@ const RANK_STYLES = [
 ] as const;
 
 export function Leaderboard() {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Contrairement à une vue SQL, une requête Firestore est nativement
-    // "live" : pas besoin d'écouter les tables sources et de refetch.
-    const usersQuery = query(collection(db, "users"), orderBy("totalScore", "desc"));
-
-    const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
-      setEntries(
-        snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as UserDoc) })),
-      );
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
+  const { entries, loading } = useLeaderboard();
 
   if (loading) {
     return (

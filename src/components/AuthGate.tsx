@@ -44,7 +44,6 @@ async function registerProfile(user: User) {
       lastName,
       nickname: user.displayName ?? fallbackName,
       avatarUrl: user.photoURL ?? null,
-      totalScore: 0,
       createdAt: serverTimestamp(),
     });
     tx.set(counterRef, { count: count + 1 });

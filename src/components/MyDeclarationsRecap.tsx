@@ -20,8 +20,6 @@ function formatDate(timestamp: Timestamp | null) {
 
 function DeclarationRow({ declaration }: { declaration: OwnDeclaration }) {
   const liveTally = useVoteTally(declaration.id);
-  const isOpen = declaration.status === "open";
-  const score = isOpen ? liveTally.points : declaration.scoreAwarded ?? 0;
 
   return (
     <li className="panel-pixel flex items-center justify-between gap-3 p-3">
@@ -33,8 +31,8 @@ function DeclarationRow({ declaration }: { declaration: OwnDeclaration }) {
           {formatDate(declaration.createdAt)}
         </p>
       </div>
-      <span className={`label-pixel shrink-0 ${isOpen ? "text-gbc-yellow" : "text-gbc-acid"}`}>
-        {isOpen ? "ouverte" : `+${score} pt${score > 1 ? "s" : ""}`}
+      <span className="label-pixel shrink-0 text-gbc-acid">
+        {liveTally.points} pt{liveTally.points > 1 ? "s" : ""}
       </span>
     </li>
   );
