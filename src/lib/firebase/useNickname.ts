@@ -5,25 +5,27 @@ import type { UserDoc } from "./types";
 
 // Petit cache mémoire partagé : évite de relire le même profil à chaque
 // carte d'une liste (historique, votes...) pendant la durée de la session.
-const usernameCache = new Map<string, string>();
+const nicknameCache = new Map<string, string>();
 
-export function useUsername(uid: string) {
-  const [username, setUsername] = useState<string | null>(
-    usernameCache.get(uid) ?? null,
+export function useNickname(uid: string) {
+  const [nickname, setNickname] = useState<string | null>(
+    nicknameCache.get(uid) ?? null,
   );
 
   useEffect(() => {
-    if (usernameCache.has(uid)) {
-      setUsername(usernameCache.get(uid)!);
+    if (!uid) return;
+
+    if (nicknameCache.has(uid)) {
+      setNickname(nicknameCache.get(uid)!);
       return;
     }
 
     let cancelled = false;
     getDoc(doc(db, "users", uid)).then((snap) => {
       if (cancelled || !snap.exists()) return;
-      const name = (snap.data() as UserDoc).username;
-      usernameCache.set(uid, name);
-      setUsername(name);
+      const name = (snap.data() as UserDoc).nickname;
+      nicknameCache.set(uid, name);
+      setNickname(name);
     });
 
     return () => {
@@ -31,5 +33,5 @@ export function useUsername(uid: string) {
     };
   }, [uid]);
 
-  return username;
+  return nickname;
 }

@@ -35,9 +35,14 @@ async function registerProfile(user: User) {
     const count = counterSnap.exists() ? (counterSnap.data().count as number) : 0;
     if (count >= MAX_USERS) return; // quota atteint : pas de profil créé
 
+    const fallbackName = user.email?.split("@")[0] ?? `joueur-${user.uid.slice(0, 6)}`;
+    const [firstName, ...rest] = (user.displayName ?? fallbackName).split(" ");
+    const lastName = rest.join(" ");
+
     tx.set(profileRef, {
-      username:
-        user.displayName ?? user.email?.split("@")[0] ?? `joueur-${user.uid.slice(0, 6)}`,
+      firstName,
+      lastName,
+      nickname: user.displayName ?? fallbackName,
       avatarUrl: user.photoURL ?? null,
       totalScore: 0,
       createdAt: serverTimestamp(),

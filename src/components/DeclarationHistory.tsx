@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { useUsername } from "@/lib/firebase/useUsername";
+import { useNickname } from "@/lib/firebase/useNickname";
 import { useVoteTally } from "@/lib/firebase/useVoteTally";
 import type { DeclarationDoc, VoteDoc } from "@/lib/firebase/types";
 
@@ -27,12 +27,12 @@ function VoteRow({
   known: boolean;
   emotion: boolean;
 }) {
-  const username = useUsername(voterId);
+  const nickname = useNickname(voterId);
   const points = (known ? 1 : 0) + (emotion ? 1 : 0);
 
   return (
     <li className="flex items-center justify-between gap-2 font-sans text-xs text-gbc-gray-300">
-      <span className="truncate">{username ?? "…"}</span>
+      <span className="truncate">{nickname ?? "…"}</span>
       <span className="label-pixel shrink-0">
         {points === 0
           ? "0 pt"
@@ -70,7 +70,7 @@ function VoteDetails({ declarationId }: { declarationId: string }) {
 }
 
 function HistoryCard({ declaration }: { declaration: HistoryDeclaration }) {
-  const declarantName = useUsername(declaration.declaredBy);
+  const declarantName = useNickname(declaration.declaredBy);
   const liveTally = useVoteTally(declaration.id);
   const [expanded, setExpanded] = useState(false);
 

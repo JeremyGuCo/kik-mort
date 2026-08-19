@@ -80,7 +80,7 @@ export function Leaderboard() {
             )}
 
             <span className="font-sans font-semibold text-sm flex-1 truncate">
-              {entry.username}
+              {entry.nickname}
             </span>
 
             <span className="label-pixel text-gbc-acid shrink-0">
