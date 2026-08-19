@@ -1,44 +1,13 @@
 import * as admin from "firebase-admin";
-import * as authV1 from "firebase-functions/v1";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 admin.initializeApp();
 const db = admin.firestore();
 
-// Groupe d'amis fermé pour l'instant : au-delà de ce nombre de comptes,
-// plus personne ne peut s'inscrire (la connexion des comptes existants
-// reste possible, eux ont déjà un profil).
-const MAX_USERS = 5;
-
-// ============================================================================
-// onUserCreate — équivalent du trigger SQL handle_new_user().
-// Crée automatiquement le profil Firestore à l'inscription Firebase Auth,
-// sauf si le quota de comptes est déjà atteint : dans ce cas, aucun profil
-// n'est créé et le compte Auth reste orphelin — les règles Firestore
-// exigent un profil pour écrire quoi que ce soit, donc ce compte ne peut
-// rien faire dans l'app.
-// (Les triggers Auth n'existent qu'en 1ère génération de Cloud Functions.)
-// ============================================================================
-export const onUserCreate = authV1.auth.user().onCreate(async (user) => {
-  const usersRef = db.collection("users");
-
-  await db.runTransaction(async (tx) => {
-    const countSnap = await tx.get(usersRef.count());
-    if (countSnap.data().count >= MAX_USERS) {
-      return;
-    }
-
-    const username =
-      user.displayName ?? user.email?.split("@")[0] ?? `joueur-${user.uid.slice(0, 6)}`;
-
-    tx.set(db.doc(`users/${user.uid}`), {
-      username,
-      avatarUrl: user.photoURL ?? null,
-      totalScore: 0,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  });
-});
+// La création de profil (et la limite à 5 inscriptions) se fait désormais
+// côté client via une transaction Firestore, sécurisée par firestore.rules
+// (meta/registrationCount) — voir src/components/AuthGate.tsx. Ça évite de
+// dépendre d'une Cloud Function pour cette étape.
 
 // ============================================================================
 // closeDeclaration — équivalent de la fonction SQL close_declaration().
