@@ -5,20 +5,38 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 admin.initializeApp();
 const db = admin.firestore();
 
+// Groupe d'amis fermé pour l'instant : au-delà de ce nombre de comptes,
+// plus personne ne peut s'inscrire (la connexion des comptes existants
+// reste possible, eux ont déjà un profil).
+const MAX_USERS = 5;
+
 // ============================================================================
 // onUserCreate — équivalent du trigger SQL handle_new_user().
-// Crée automatiquement le profil Firestore à l'inscription Firebase Auth.
+// Crée automatiquement le profil Firestore à l'inscription Firebase Auth,
+// sauf si le quota de comptes est déjà atteint : dans ce cas, aucun profil
+// n'est créé et le compte Auth reste orphelin — les règles Firestore
+// exigent un profil pour écrire quoi que ce soit, donc ce compte ne peut
+// rien faire dans l'app.
 // (Les triggers Auth n'existent qu'en 1ère génération de Cloud Functions.)
 // ============================================================================
 export const onUserCreate = authV1.auth.user().onCreate(async (user) => {
-  const username =
-    user.displayName ?? user.email?.split("@")[0] ?? `joueur-${user.uid.slice(0, 6)}`;
+  const usersRef = db.collection("users");
 
-  await db.doc(`users/${user.uid}`).set({
-    username,
-    avatarUrl: user.photoURL ?? null,
-    totalScore: 0,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  await db.runTransaction(async (tx) => {
+    const countSnap = await tx.get(usersRef.count());
+    if (countSnap.data().count >= MAX_USERS) {
+      return;
+    }
+
+    const username =
+      user.displayName ?? user.email?.split("@")[0] ?? `joueur-${user.uid.slice(0, 6)}`;
+
+    tx.set(db.doc(`users/${user.uid}`), {
+      username,
+      avatarUrl: user.photoURL ?? null,
+      totalScore: 0,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
   });
 });
 

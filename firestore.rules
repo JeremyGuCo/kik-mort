@@ -18,6 +18,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Un compte Auth peut exister sans profil : c'est le cas d'un compte
+    // créé au-delà du quota de MAX_USERS (voir onUserCreate côté Cloud
+    // Functions), volontairement laissé orphelin. Ce garde-fou l'empêche
+    // d'écrire quoi que ce soit dans l'app.
+    function hasProfile() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function declaration(declarationId) {
       return get(/databases/$(database)/documents/declarations/$(declarationId)).data;
     }
@@ -54,6 +62,7 @@ service cloud.firestore {
       // Un joueur ne peut déclarer qu'en son propre nom, et uniquement à
       // l'état initial (ouvert, sans score).
       allow create: if isSignedIn()
+        && hasProfile()
         && request.resource.data.declaredBy == request.auth.uid
         && request.resource.data.status == 'open'
         && request.resource.data.scoreAwarded == null;
@@ -73,6 +82,7 @@ service cloud.firestore {
         // uid), pas sur sa propre déclaration, et uniquement tant qu'elle
         // est ouverte.
         allow create, update: if isSignedIn()
+          && hasProfile()
           && request.auth.uid == voterId
           && declaration(declarationId).status == 'open'
           && declaration(declarationId).declaredBy != request.auth.uid;
