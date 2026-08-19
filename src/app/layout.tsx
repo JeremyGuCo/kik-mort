@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthGate } from "@/components/AuthGate";
 import { PendingVoteModal } from "@/components/PendingVoteModal";
 
 export const metadata: Metadata = {
@@ -21,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body>
-        {children}
-        <PendingVoteModal />
+        <AuthGate>
+          {children}
+          <PendingVoteModal />
+        </AuthGate>
       </body>
     </html>
   );
