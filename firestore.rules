@@ -9,6 +9,9 @@ rules_version = '2';
 //   declarations/{id}/votes/{voterId}  { known, emotion, createdAt, updatedAt }
 //     (l'id du document de vote = uid du votant : empêche nativement un
 //      deuxième vote du même joueur sur la même déclaration, sans requête).
+//   meta/registrationCount             { count }
+//     (compteur d'inscriptions, incrémenté atomiquement à chaque nouveau
+//      profil créé — voir la fonction underCap() ci-dessous).
 // ============================================================================
 
 service cloud.firestore {
@@ -19,15 +22,42 @@ service cloud.firestore {
     }
 
     // Un compte Auth peut exister sans profil : c'est le cas d'un compte
-    // créé au-delà du quota de MAX_USERS (voir onUserCreate côté Cloud
-    // Functions), volontairement laissé orphelin. Ce garde-fou l'empêche
-    // d'écrire quoi que ce soit dans l'app.
+    // créé au-delà du quota d'inscriptions (voir meta/registrationCount),
+    // volontairement laissé orphelin. Ce garde-fou l'empêche d'écrire quoi
+    // que ce soit dans l'app.
     function hasProfile() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     function declaration(declarationId) {
       return get(/databases/$(database)/documents/declarations/$(declarationId)).data;
+    }
+
+    // Groupe d'amis fermé pour l'instant : au-delà de 5 inscriptions, plus
+    // personne ne peut créer de profil (la connexion des comptes existants
+    // reste possible, eux ont déjà un profil). Le compteur peut ne pas
+    // encore exister (avant la toute première inscription) : dans ce cas
+    // on le considère à 0.
+    function underCap() {
+      return !exists(/databases/$(database)/documents/meta/registrationCount)
+        || get(/databases/$(database)/documents/meta/registrationCount).data.count < 5;
+    }
+
+    // ------------------------------------------------------------------
+    // meta/registrationCount — compteur d'inscriptions
+    // ------------------------------------------------------------------
+    match /meta/registrationCount {
+      allow read: if isSignedIn();
+
+      // Première inscription jamais faite : le document n'existe pas encore.
+      allow create: if isSignedIn() && request.resource.data.count == 1;
+
+      // Incrément strict de 1, et seulement si le quota n'était pas déjà
+      // atteint — bloque toute tentative de dépasser 5, même en contournant
+      // le client.
+      allow update: if isSignedIn()
+        && request.resource.data.count == resource.data.count + 1
+        && resource.data.count < 5;
     }
 
     // ------------------------------------------------------------------
@@ -37,11 +67,13 @@ service cloud.firestore {
       // Classement public : tout joueur connecté voit tous les profils.
       allow read: if isSignedIn();
 
-      // Le profil est créé côté client à la première connexion, mais le
-      // score démarre obligatoirement à 0.
+      // Le profil est créé côté client à la première connexion, en même
+      // temps (même transaction) que l'incrément de meta/registrationCount
+      // — les deux écritures doivent passer ensemble ou pas du tout.
       allow create: if isSignedIn()
         && request.auth.uid == userId
-        && request.resource.data.totalScore == 0;
+        && request.resource.data.totalScore == 0
+        && underCap();
 
       // Un joueur peut modifier son propre profil (username, avatar) mais
       // ne peut jamais toucher à totalScore : seule la Cloud Function
