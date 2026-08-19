@@ -1,0 +1,96 @@
+rules_version = '2';
+
+// ============================================================================
+// Kik-Mort — Règles Firestore (équivalent des policies RLS Supabase)
+//
+// Modèle de données :
+//   users/{uid}                        { username, avatarUrl, totalScore, createdAt }
+//   declarations/{declarationId}       { celebrityName, declaredBy, status, scoreAwarded, createdAt, closedAt }
+//   declarations/{id}/votes/{voterId}  { known, emotion, createdAt, updatedAt }
+//     (l'id du document de vote = uid du votant : empêche nativement un
+//      deuxième vote du même joueur sur la même déclaration, sans requête).
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Un compte Auth peut exister sans profil : c'est le cas d'un compte
+    // créé au-delà du quota de MAX_USERS (voir onUserCreate côté Cloud
+    // Functions), volontairement laissé orphelin. Ce garde-fou l'empêche
+    // d'écrire quoi que ce soit dans l'app.
+    function hasProfile() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function declaration(declarationId) {
+      return get(/databases/$(database)/documents/declarations/$(declarationId)).data;
+    }
+
+    // ------------------------------------------------------------------
+    // users
+    // ------------------------------------------------------------------
+    match /users/{userId} {
+      // Classement public : tout joueur connecté voit tous les profils.
+      allow read: if isSignedIn();
+
+      // Le profil est créé côté client à la première connexion, mais le
+      // score démarre obligatoirement à 0.
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.totalScore == 0;
+
+      // Un joueur peut modifier son propre profil (username, avatar) mais
+      // ne peut jamais toucher à totalScore : seule la Cloud Function
+      // closeDeclaration (Admin SDK, hors règles) l'incrémente.
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.totalScore == resource.data.totalScore;
+
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // declarations
+    // ------------------------------------------------------------------
+    match /declarations/{declarationId} {
+      allow read: if isSignedIn();
+
+      // Un joueur ne peut déclarer qu'en son propre nom, et uniquement à
+      // l'état initial (ouvert, sans score).
+      allow create: if isSignedIn()
+        && hasProfile()
+        && request.resource.data.declaredBy == request.auth.uid
+        && request.resource.data.status == 'open'
+        && request.resource.data.scoreAwarded == null;
+
+      // Pas de clôture ni de modification directe côté client : ça
+      // passerait à côté du calcul de score. Seule la Cloud Function
+      // closeDeclaration (Admin SDK) peut clôturer.
+      allow update, delete: if false;
+
+      // --------------------------------------------------------------
+      // declarations/{id}/votes/{voterId}
+      // --------------------------------------------------------------
+      match /votes/{voterId} {
+        allow read: if isSignedIn();
+
+        // Un joueur ne peut écrire que son propre vote (id du doc = son
+        // uid), pas sur sa propre déclaration, et uniquement tant qu'elle
+        // est ouverte.
+        allow create, update: if isSignedIn()
+          && hasProfile()
+          && request.auth.uid == voterId
+          && declaration(declarationId).status == 'open'
+          && declaration(declarationId).declaredBy != request.auth.uid;
+
+        allow delete: if isSignedIn()
+          && request.auth.uid == voterId
+          && declaration(declarationId).status == 'open';
+      }
+    }
+  }
+}
