@@ -12,8 +12,12 @@ export default function DeclarerPage() {
         >
           ←
         </Link>
-        <h1 className="text-lg text-gbc-acid">Déclarer</h1>
+        <h1 className="text-lg text-gbc-acid">Déclarer un décès</h1>
       </div>
+
+      <p className="w-full max-w-sm text-center font-pixel text-xl text-gbc-gray-100">
+        Ki ké mort ?
+      </p>
 
       <DeclareForm />
     </main>

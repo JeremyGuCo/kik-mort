@@ -35,11 +35,11 @@ function VoteRow({
   emotion,
 }: {
   voterId: string;
-  known: boolean;
-  emotion: boolean;
+  known: number;
+  emotion: number;
 }) {
   const nickname = useNickname(voterId);
-  const points = (known ? 1 : 0) + (emotion ? 1 : 0);
+  const points = known + emotion;
 
   return (
     <li className="flex items-center justify-between gap-2 font-sans text-xs text-gbc-gray-300">
@@ -47,7 +47,9 @@ function VoteRow({
       <span className="label-pixel shrink-0">
         {points === 0
           ? "0 pt"
-          : [known && "connu", emotion && "émotion"].filter(Boolean).join(" · ")}
+          : [known > 0 && `connu ${known}`, emotion > 0 && `émotion ${emotion}`]
+              .filter(Boolean)
+              .join(" · ")}
       </span>
     </li>
   );
@@ -91,8 +93,8 @@ function MyVoteEditor({
   celebrityName: string;
   voterId: string;
 }) {
-  const [known, setKnown] = useState(false);
-  const [emotion, setEmotion] = useState(false);
+  const [known, setKnown] = useState(0);
+  const [emotion, setEmotion] = useState(0);
 
   useEffect(() => {
     return onSnapshot(
@@ -106,7 +108,7 @@ function MyVoteEditor({
     );
   }, [declarationId, voterId]);
 
-  async function save(nextKnown: boolean, nextEmotion: boolean) {
+  async function save(nextKnown: number, nextEmotion: number) {
     await setDoc(doc(db, "declarations", declarationId, "votes", voterId), {
       voterId,
       celebrityName,
@@ -123,9 +125,8 @@ function MyVoteEditor({
       <div className="flex gap-2">
         <VoteToggle
           label="Connu"
-          points={1}
           color="violet"
-          checked={known}
+          value={known}
           onChange={(value) => {
             setKnown(value);
             save(value, emotion);
@@ -133,9 +134,8 @@ function MyVoteEditor({
         />
         <VoteToggle
           label="Émotion"
-          points={1}
           color="pink"
-          checked={emotion}
+          value={emotion}
           onChange={(value) => {
             setEmotion(value);
             save(known, value);

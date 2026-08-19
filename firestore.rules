@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ============================================================================
-// Kik-Mort — Règles Firestore (équivalent des policies RLS Supabase)
+// Ki-Ké-Mort — Règles Firestore (équivalent des policies RLS Supabase)
 //
 // Modèle de données :
 //   users/{uid}                        { firstName, lastName, nickname, avatarUrl, createdAt }
@@ -9,6 +9,7 @@ rules_version = '2';
 //   declarations/{id}/votes/{voterId}  { voterId, celebrityName, known, emotion, createdAt, updatedAt }
 //     (l'id du document de vote = uid du votant : empêche nativement un
 //      deuxième vote du même joueur sur la même déclaration, sans requête.
+//      known et emotion sont des entiers de 0 à 2 (points par section).
 //      voterId et celebrityName sont dénormalisés pour permettre le récap
 //      "points donnés" d'un joueur via une requête collectionGroup, sans
 //      relire chaque déclaration parente.)
@@ -17,11 +18,12 @@ rules_version = '2';
 //      profil créé — voir la fonction underCap() ci-dessous).
 //
 // Pas de "clôture" ni de champ score sur les documents : chaque déclaration
-// reste modifiable par les votants en permanence (max 2 pts : Connu +
-// Émotion), et le score de chaque joueur est calculé en direct côté client
-// en sommant les votes reçus sur ses déclarations — jamais stocké ni
-// transféré vers le profil d'un autre joueur. Ça évite tout mécanisme de
-// confiance inter-documents (donc pas besoin de Cloud Function ici).
+// reste modifiable par les votants en permanence (max 2 pts par section :
+// Connu et Émotion, soit 4 pts max par vote), et le score de chaque joueur
+// est calculé en direct côté client en sommant les votes reçus sur ses
+// déclarations — jamais stocké ni transféré vers le profil d'un autre
+// joueur. Ça évite tout mécanisme de confiance inter-documents (donc pas
+// besoin de Cloud Function ici).
 // ============================================================================
 
 service cloud.firestore {
@@ -114,16 +116,21 @@ service cloud.firestore {
         allow read: if isSignedIn();
 
         // Un joueur ne peut écrire que son propre vote (id du doc = son
-        // uid), jamais sur sa propre déclaration. Modifiable à tout moment
-        // (création ou mise à jour) — pas de notion de clôture.
+        // uid), jamais sur sa propre déclaration, et jusqu'à 2 points par
+        // section (Connu / Émotion). Modifiable à tout moment (création ou
+        // mise à jour) — pas de notion de clôture.
         allow create, update: if isSignedIn()
           && hasProfile()
           && request.auth.uid == voterId
           && request.resource.data.voterId == request.auth.uid
+          && request.resource.data.known is int
+          && request.resource.data.known >= 0 && request.resource.data.known <= 2
+          && request.resource.data.emotion is int
+          && request.resource.data.emotion >= 0 && request.resource.data.emotion <= 2
           && declaration(declarationId).declaredBy != request.auth.uid;
 
         // Pas de suppression : pour retirer ses points, on remet les deux
-        // toggles à false plutôt que de supprimer le document.
+        // sections à 0 plutôt que de supprimer le document.
         allow delete: if false;
       }
     }

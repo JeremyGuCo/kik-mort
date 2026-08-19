@@ -10,7 +10,7 @@ import { PendingVoteModal } from "@/components/PendingVoteModal";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Kik-Mort",
+  title: "Ki-Ké-Mort",
   description: "Le jeu de comptage de points entre amis sur la mortalité des célébrités.",
   manifest: "/manifest.json",
 };

@@ -156,7 +156,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-6 p-6">
         <div className="flex w-full max-w-sm flex-col items-center gap-5 panel-pixel p-6 text-center">
-          <h1 className="text-xl text-gbc-acid">KIK-MORT</h1>
+          <h1 className="text-xl text-gbc-acid">KI-KÉ-MORT</h1>
           <p className="font-sans text-sm text-gbc-gray-300">
             Connecte-toi pour rejoindre le classement.
           </p>
@@ -233,7 +233,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-6 p-6">
         <div className="flex w-full max-w-sm flex-col items-center gap-5 panel-pixel p-6 text-center">
-          <h1 className="text-xl text-gbc-acid">KIK-MORT</h1>
+          <h1 className="text-xl text-gbc-acid">KI-KÉ-MORT</h1>
           <p className="font-sans text-sm text-gbc-gray-300">
             Désolé, les places sont toutes prises pour l&apos;instant.
           </p>

@@ -13,8 +13,8 @@ export function PendingVoteModal() {
   const [user, setUser] = useState<User | null>(null);
   const [openDeclarations, setOpenDeclarations] = useState<PendingDeclaration[]>([]);
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
-  const [known, setKnown] = useState(false);
-  const [emotion, setEmotion] = useState(false);
+  const [known, setKnown] = useState(0);
+  const [emotion, setEmotion] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
@@ -61,8 +61,8 @@ export function PendingVoteModal() {
 
   // Repart de zéro à chaque nouvelle déclaration à voter.
   useEffect(() => {
-    setKnown(false);
-    setEmotion(false);
+    setKnown(0);
+    setEmotion(0);
   }, [pending?.id]);
 
   if (!user || !pending) return null;
@@ -104,20 +104,10 @@ export function PendingVoteModal() {
           )}
         </div>
 
-        <VoteToggle
-          label="Connu"
-          points={1}
-          color="violet"
-          checked={known}
-          onChange={setKnown}
-        />
-        <VoteToggle
-          label="Émotion"
-          points={1}
-          color="pink"
-          checked={emotion}
-          onChange={setEmotion}
-        />
+        <div className="flex gap-3">
+          <VoteToggle label="Connu" color="violet" value={known} onChange={setKnown} />
+          <VoteToggle label="Émotion" color="pink" value={emotion} onChange={setEmotion} />
+        </div>
 
         <button
           type="button"
