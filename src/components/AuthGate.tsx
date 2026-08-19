@@ -1,9 +1,12 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import {
+  createUserWithEmailAndPassword,
+  type AuthError,
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   type User,
@@ -50,11 +53,30 @@ async function registerProfile(user: User) {
   });
 }
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  "auth/email-already-in-use": "Un compte existe déjà avec cet email — connecte-toi plutôt.",
+  "auth/invalid-email": "Adresse email invalide.",
+  "auth/weak-password": "Mot de passe trop court (6 caractères minimum).",
+  "auth/invalid-credential": "Email ou mot de passe incorrect.",
+  "auth/user-not-found": "Aucun compte avec cet email — inscris-toi plutôt.",
+  "auth/wrong-password": "Email ou mot de passe incorrect.",
+  "auth/too-many-requests": "Trop de tentatives, réessaie dans un instant.",
+};
+
+function authErrorMessage(error: unknown): string {
+  const code = (error as AuthError)?.code;
+  return (code && AUTH_ERROR_MESSAGES[code]) || "Une erreur est survenue. Réessaie.";
+}
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [checked, setChecked] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [googleSigningIn, setGoogleSigningIn] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailSubmitting, setEmailSubmitting] = useState<"in" | "up" | null>(null);
 
   const [profileExists, setProfileExists] = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
@@ -93,15 +115,32 @@ export function AuthGate({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
-  async function handleSignIn() {
-    setSigningIn(true);
+  async function handleGoogleSignIn() {
+    setGoogleSigningIn(true);
     setError(null);
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
-    } catch {
-      setError("Connexion impossible. Réessaie.");
+    } catch (err) {
+      setError(authErrorMessage(err));
     } finally {
-      setSigningIn(false);
+      setGoogleSigningIn(false);
+    }
+  }
+
+  async function handleEmailAuth(event: FormEvent, mode: "in" | "up") {
+    event.preventDefault();
+    setEmailSubmitting(mode);
+    setError(null);
+    try {
+      if (mode === "up") {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setEmailSubmitting(null);
     }
   }
 
@@ -122,16 +161,69 @@ export function AuthGate({ children }: { children: ReactNode }) {
             Connecte-toi pour rejoindre le classement.
           </p>
 
-          {error && <p className="font-sans text-sm text-gbc-danger">{error}</p>}
-
           <button
             type="button"
-            onClick={handleSignIn}
-            disabled={signingIn}
-            className="btn-pixel text-sm disabled:pointer-events-none disabled:opacity-50"
+            onClick={handleGoogleSignIn}
+            disabled={googleSigningIn}
+            className="btn-pixel w-full text-sm disabled:pointer-events-none disabled:opacity-50"
           >
-            {signingIn ? "Connexion…" : "Se connecter avec Google"}
+            {googleSigningIn ? "Connexion…" : "Se connecter avec Google"}
           </button>
+
+          <div className="flex w-full items-center gap-3">
+            <span className="h-0.5 flex-1 bg-gbc-ink" />
+            <span className="label-pixel text-gbc-gray-500">ou</span>
+            <span className="h-0.5 flex-1 bg-gbc-ink" />
+          </div>
+
+          <form
+            onSubmit={(event) => handleEmailAuth(event, "in")}
+            className="flex w-full flex-col gap-3"
+          >
+            <input
+              type="email"
+              autoComplete="email"
+              placeholder="Email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              className="border-4 border-gbc-ink bg-gbc-panel2 px-3 py-3 font-sans text-base
+                text-gbc-gray-100 outline-none placeholder:text-gbc-gray-500
+                focus:border-gbc-violet"
+            />
+            <input
+              type="password"
+              autoComplete="current-password"
+              placeholder="Mot de passe"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              minLength={6}
+              required
+              className="border-4 border-gbc-ink bg-gbc-panel2 px-3 py-3 font-sans text-base
+                text-gbc-gray-100 outline-none placeholder:text-gbc-gray-500
+                focus:border-gbc-violet"
+            />
+
+            {error && <p className="font-sans text-sm text-gbc-danger">{error}</p>}
+
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={emailSubmitting !== null}
+                className="btn-pixel-violet flex-1 text-sm disabled:pointer-events-none disabled:opacity-50"
+              >
+                {emailSubmitting === "in" ? "…" : "Se connecter"}
+              </button>
+              <button
+                type="button"
+                onClick={(event) => handleEmailAuth(event, "up")}
+                disabled={emailSubmitting !== null}
+                className="btn-pixel-pink flex-1 text-sm disabled:pointer-events-none disabled:opacity-50"
+              >
+                {emailSubmitting === "up" ? "…" : "S'inscrire"}
+              </button>
+            </div>
+          </form>
         </div>
       </main>
     );
